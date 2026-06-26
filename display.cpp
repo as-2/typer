@@ -3,6 +3,7 @@
 
 #include <SPI.h>
 #include <Adafruit_GFX.h>
+#include <Fonts/FreeSans9pt7b.h>
 #include <GxEPD2_BW.h>
 
 // Create the one global display object
@@ -17,6 +18,107 @@ GxEPD2_BW<GxEPD2_290_T94_V2, GxEPD2_290_T94_V2::HEIGHT> epd(
         PIN_BUSY
     )
 );
+
+uint16_t getTextWidth(const String& text) {
+    int16_t x1;
+    int16_t y1;
+    uint16_t width;
+    uint16_t height;
+
+    epd.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &width, &height);
+    return width;
+}
+
+uint16_t getTextHeight(const String& text) {
+    int16_t x1;
+    int16_t y1;
+    uint16_t width;
+    uint16_t height;
+
+    epd.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &width, &height);
+    return height;
+}
+
+int getTextTopOffset(const String& text) {
+    int16_t x1;
+    int16_t y1;
+    uint16_t width;
+    uint16_t height;
+
+    epd.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &width, &height);
+    return y1;
+}
+
+uint16_t getLineHeight() {
+    return getTextHeight("Ag") + 4;
+}
+
+void configureTextSize(uint8_t textSize) {
+    if (textSize == DISPLAY_TEXT_MEDIUM) {
+        epd.setFont(&FreeSans9pt7b);
+        epd.setTextSize(1);
+    }
+    else {
+        epd.setFont();
+        epd.setTextSize(textSize);
+    }
+}
+
+void drawWrappedText(int x, int y, const char* text, uint8_t textSize) {
+    const int maxWidth = epd.width() - x;
+    const int lineHeight = getLineHeight();
+
+    int cursorY = y;
+    String line;
+    String word;
+
+    auto drawLine = [&]() {
+        if (line.length() == 0 || cursorY >= epd.height()) {
+            return;
+        }
+
+        epd.setCursor(x, cursorY - getTextTopOffset(line));
+        epd.print(line);
+        cursorY += lineHeight;
+        line = "";
+    };
+
+    auto addWord = [&]() {
+        if (word.length() == 0) {
+            return;
+        }
+
+        String candidate = line.length() == 0 ? word : line + " " + word;
+
+        if (line.length() == 0 || getTextWidth(candidate) <= maxWidth) {
+            line = candidate;
+        }
+        else {
+            drawLine();
+            line = word;
+        }
+
+        word = "";
+    };
+
+    for (const char* cursor = text; *cursor != '\0'; cursor++) {
+        const char c = *cursor;
+
+        if (c == '\n') {
+            addWord();
+            drawLine();
+        }
+        else if (c == ' ' || c == '\t' || c == '\r') {
+            addWord();
+        }
+        else {
+            word += c;
+        }
+    }
+
+    addWord();
+    drawLine();
+}
 
 void Display::begin() {
     Serial.begin(115200);
@@ -49,7 +151,7 @@ void Display::clear() {
     while (epd.nextPage());
 }
 
-void Display::printText(int x, int y, const char* text) {
+void Display::printText(int x, int y, const char* text, uint8_t textSize) {
     epd.setFullWindow();
 
     epd.firstPage();
@@ -58,10 +160,10 @@ void Display::printText(int x, int y, const char* text) {
         epd.fillScreen(GxEPD_WHITE);
 
         epd.setTextColor(GxEPD_BLACK);
-        epd.setTextSize(2);
+        configureTextSize(textSize);
+        epd.setTextWrap(false);
 
-        epd.setCursor(x, y);
-        epd.println(text);
+        drawWrappedText(x, y, text, textSize);
 
     }
     while (epd.nextPage());
@@ -73,7 +175,7 @@ void Display::printCentered(const char* text) {
     uint16_t width;
     uint16_t height;
 
-    epd.setTextSize(2);
+    configureTextSize(DISPLAY_TEXT_LARGE);
     epd.getTextBounds(text, 0, 0, &x1, &y1, &width, &height);
 
     const int x = ((epd.width() - width) / 2) - x1;
