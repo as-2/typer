@@ -124,12 +124,11 @@ void drawWrappedText(int x, int y, const char* text) {
     const int lineHeight = getLineHeight();
     const int visibleHeight = epd.height() - y;
     const int totalHeight = lines.size() * lineHeight;
-    const int endAnchorY = y + ((visibleHeight * 3) / 5);
 
     int startY = y;
 
     if (totalHeight > visibleHeight) {
-        startY = endAnchorY - ((lines.size() - 1) * lineHeight);
+        startY = epd.height() - totalHeight;
     }
 
     for (size_t i = 0; i < lines.size(); i++) {
