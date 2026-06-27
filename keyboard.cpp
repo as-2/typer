@@ -1,13 +1,13 @@
 #include "keyboard.h"
 #include "config.h"
 #include "display.h"
-#include "document.h"
 
 #include <BLEAdvertisedDevice.h>
 #include <BLEClient.h>
 #include <BLEDevice.h>
 #include <BLESecurity.h>
 #include <BLEUtils.h>
+#include <vector>
 
 Keyboard keyboard;
 
@@ -21,12 +21,14 @@ static bool shouldScan = false;
 static bool connected = false;
 static bool scanStarted = false;
 static uint8_t previousReport[7] = {};
-static String pendingKeys;
-static bool documentChanged = false;
-static unsigned long lastDocumentChangeAt = 0;
+static std::vector<KeyboardEvent> pendingEvents;
 
 static bool isShiftPressed(uint8_t modifier) {
     return (modifier & 0x22) != 0;
+}
+
+static bool isCtrlPressed(uint8_t modifier) {
+    return (modifier & 0x11) != 0;
 }
 
 static bool keyWasPressed(uint8_t keycode) {
@@ -77,6 +79,7 @@ static void queueKeyboardReport(const uint8_t* data, size_t length) {
     }
 
     const bool shifted = isShiftPressed(data[0]);
+    const bool ctrl = isCtrlPressed(data[0]);
 
     for (uint8_t i = 1; i < sizeof(previousReport); i++) {
         const uint8_t keycode = data[i];
@@ -85,15 +88,15 @@ static void queueKeyboardReport(const uint8_t* data, size_t length) {
             continue;
         }
 
-        if (keycode == 0x2A) {
-            pendingKeys += '\b';
-            continue;
-        }
+        KeyboardEvent event = {
+            keycodeToAscii(keycode, shifted),
+            keycode,
+            ctrl,
+            shifted
+        };
 
-        const char ascii = keycodeToAscii(keycode, shifted);
-
-        if (ascii != '\0') {
-            pendingKeys += ascii;
+        if (event.character != '\0' || keycode == 0x28 || keycode == 0x2A || keycode == 0x51 || keycode == 0x52) {
+            pendingEvents.push_back(event);
         }
         else {
             Serial.print("Unhandled HID keycode: ");
@@ -269,34 +272,18 @@ void Keyboard::update() {
         );
     }
 
-    if (documentChanged && millis() - lastDocumentChangeAt >= DOCUMENT_SAVE_IDLE_MS) {
-        document.save();
-        documentChanged = false;
-    }
-
-    if (pendingKeys.length() == 0) {
-        return;
-    }
-
-    String keys = pendingKeys;
-    pendingKeys = "";
-
-    for (size_t i = 0; i < keys.length(); i++) {
-        const char key = keys[i];
-
-        if (key == '\b') {
-            document.backspace();
-        }
-        else {
-            document.insertChar(key);
-        }
-    }
-
-    documentChanged = true;
-    lastDocumentChangeAt = millis();
-    display.printTextPartial(TEXT_LEFT, TEXT_TOP, document.getText().c_str(), TEXT_SIZE);
 }
 
 bool Keyboard::isConnected() const {
     return connected;
+}
+
+bool Keyboard::readEvent(KeyboardEvent& event) {
+    if (pendingEvents.empty()) {
+        return false;
+    }
+
+    event = pendingEvents.front();
+    pendingEvents.erase(pendingEvents.begin());
+    return true;
 }
