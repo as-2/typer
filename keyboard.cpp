@@ -17,6 +17,7 @@ static BLEUUID reportCharUUID((uint16_t)0x2A4D);
 static BLEAdvertisedDevice* keyboardDevice = nullptr;
 static BLEClient* bleClient = nullptr;
 static bool shouldConnect = false;
+static bool shouldScan = false;
 static bool connected = false;
 static bool scanStarted = false;
 static uint8_t previousReport[7] = {};
@@ -123,6 +124,35 @@ class KeyboardClientCallbacks : public BLEClientCallbacks {
     }
 };
 
+static bool subscribeToKeyboardReports(BLERemoteService* hidService) {
+    std::map<std::string, BLERemoteCharacteristic*>* characteristics = hidService->getCharacteristics();
+    uint8_t subscribedCount = 0;
+
+    for (auto const& entry : *characteristics) {
+        BLERemoteCharacteristic* characteristic = entry.second;
+
+        if (!characteristic->getUUID().equals(reportCharUUID) || !characteristic->canNotify()) {
+            continue;
+        }
+
+        Serial.print("Subscribing to report characteristic handle 0x");
+        Serial.println(characteristic->getHandle(), HEX);
+        characteristic->registerForNotify(notifyCallback);
+        subscribedCount++;
+    }
+
+    if (subscribedCount == 0) {
+        Serial.println("No notify-capable HID report characteristics found.");
+        return false;
+    }
+
+    connected = true;
+    Serial.print("Subscribed to ");
+    Serial.print(subscribedCount);
+    Serial.println(" HID input report characteristic(s). Press keys now.");
+    return true;
+}
+
 static bool connectToKeyboard() {
     if (keyboardDevice == nullptr) {
         return false;
@@ -153,32 +183,11 @@ static bool connectToKeyboard() {
 
     Serial.println("Found HID service.");
 
-    std::map<std::string, BLERemoteCharacteristic*>* characteristics = hidService->getCharacteristics();
-    uint8_t subscribedCount = 0;
-
-    for (auto const& entry : *characteristics) {
-        BLERemoteCharacteristic* characteristic = entry.second;
-
-        if (!characteristic->getUUID().equals(reportCharUUID) || !characteristic->canNotify()) {
-            continue;
-        }
-
-        Serial.print("Subscribing to report characteristic handle 0x");
-        Serial.println(characteristic->getHandle(), HEX);
-        characteristic->registerForNotify(notifyCallback);
-        subscribedCount++;
-    }
-
-    if (subscribedCount == 0) {
-        Serial.println("No notify-capable HID report characteristics found.");
+    if (!subscribeToKeyboardReports(hidService)) {
         bleClient->disconnect();
         return false;
     }
 
-    connected = true;
-    Serial.print("Subscribed to ");
-    Serial.print(subscribedCount);
-    Serial.println(" HID input report characteristic(s). Press keys now.");
     return true;
 }
 
@@ -208,9 +217,20 @@ class BleKeyboardScanCallbacks : public BLEAdvertisedDeviceCallbacks {
     }
 };
 
+static void startKeyboardScan() {
+    Serial.println("Scanning for BLE keyboard. Put keyboard into pairing mode.");
+
+    BLEScan* scan = BLEDevice::getScan();
+    scan->setAdvertisedDeviceCallbacks(new BleKeyboardScanCallbacks(), true);
+    scan->setActiveScan(true);
+    scan->setInterval(100);
+    scan->setWindow(99);
+    scan->start(KEYBOARD_SCAN_SECONDS, false);
+    scanStarted = true;
+}
+
 bool Keyboard::begin() {
     Serial.println("Starting BLE keyboard input...");
-    Serial.println("Put the ERGO K860 into pairing mode.");
 
     BLEDevice::init("ESP32-Typewriter");
 
@@ -219,29 +239,34 @@ bool Keyboard::begin() {
     security->setAuthenticationMode(true, false, true);
     BLEDevice::setSecurityCallbacks(new BLESecurityCallbacks());
 
-    BLEScan* scan = BLEDevice::getScan();
-    scan->setAdvertisedDeviceCallbacks(new BleKeyboardScanCallbacks(), true);
-    scan->setActiveScan(true);
-    scan->setInterval(100);
-    scan->setWindow(99);
-    scan->start(5, false);
-    scanStarted = true;
+    shouldScan = true;
 
     return true;
 }
 
 void Keyboard::update() {
+    if (shouldScan) {
+        shouldScan = false;
+        startKeyboardScan();
+    }
+
     if (shouldConnect) {
         shouldConnect = false;
 
         if (!connectToKeyboard()) {
-            Serial.println("Connection failed. Restart the board and put the keyboard in pairing mode again.");
+            Serial.println("Connection failed. Restart the board to scan again.");
         }
     }
 
     if (!connected && scanStarted && !shouldConnect) {
         scanStarted = false;
         Serial.println("BLE scan finished. Restart the board to scan again.");
+        display.printText(
+            TEXT_LEFT,
+            TEXT_TOP,
+            "Keyboard not found.\n\nRestart the board to scan again.",
+            TEXT_SIZE
+        );
     }
 
     if (documentChanged && millis() - lastDocumentChangeAt >= DOCUMENT_SAVE_IDLE_MS) {

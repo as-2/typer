@@ -28,7 +28,7 @@ void setup() {
     display.printText(
         TEXT_LEFT,
         TEXT_TOP,
-        "Turn on keyboard pairing mode.\n\nWaiting for BLE keyboard...",
+        "Connecting to keyboard...\n\nPlease turn on keyboard pairing mode.",
         TEXT_SIZE
     );
 
