@@ -1,4 +1,4 @@
-#include "keyboard_test.h"
+#include "keyboard.h"
 #include "config.h"
 #include "display.h"
 #include "document.h"
@@ -9,7 +9,7 @@
 #include <BLESecurity.h>
 #include <BLEUtils.h>
 
-KeyboardTest keyboardTest;
+Keyboard keyboard;
 
 static BLEUUID hidServiceUUID((uint16_t)0x1812);
 static BLEUUID reportCharUUID((uint16_t)0x2A4D);
@@ -103,31 +103,9 @@ static void queueKeyboardReport(const uint8_t* data, size_t length) {
     memcpy(previousReport, data, sizeof(previousReport));
 }
 
-static void printBytes(const uint8_t* data, size_t length) {
-    for (size_t i = 0; i < length; i++) {
-        if (data[i] < 0x10) {
-            Serial.print('0');
-        }
-
-        Serial.print(data[i], HEX);
-        Serial.print(' ');
-    }
-}
-
 static void notifyCallback(BLERemoteCharacteristic* characteristic, uint8_t* data, size_t length, bool isNotify) {
-    (void)isNotify;
-
-#if DEBUG_BLE_KEYBOARD_REPORTS
-    Serial.print("Keyboard report from handle 0x");
-    Serial.print(characteristic->getHandle(), HEX);
-    Serial.print(" (");
-    Serial.print(length);
-    Serial.print(" bytes): ");
-    printBytes(data, length);
-    Serial.println();
-#else
     (void)characteristic;
-#endif
+    (void)isNotify;
 
     queueKeyboardReport(data, length);
 }
@@ -230,8 +208,8 @@ class BleKeyboardScanCallbacks : public BLEAdvertisedDeviceCallbacks {
     }
 };
 
-bool KeyboardTest::begin() {
-    Serial.println("Starting BLE keyboard input test...");
+bool Keyboard::begin() {
+    Serial.println("Starting BLE keyboard input...");
     Serial.println("Put the ERGO K860 into pairing mode.");
 
     BLEDevice::init("ESP32-Typewriter");
@@ -252,7 +230,7 @@ bool KeyboardTest::begin() {
     return true;
 }
 
-void KeyboardTest::update() {
+void Keyboard::update() {
     if (shouldConnect) {
         shouldConnect = false;
 

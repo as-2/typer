@@ -1,6 +1,6 @@
 #include "display.h"
 #include "document.h"
-#include "keyboard_test.h"
+#include "keyboard.h"
 #include "config.h"
 
 void setup() {
@@ -17,9 +17,9 @@ void setup() {
         TEXT_SIZE
     );
 
-    keyboardTest.begin();
+    keyboard.begin();
 }
 
 void loop() {
-    keyboardTest.update();
+    keyboard.update();
 }

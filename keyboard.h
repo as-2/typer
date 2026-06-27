@@ -2,11 +2,11 @@
 
 #include <Arduino.h>
 
-class KeyboardTest
+class Keyboard
 {
 public:
     bool begin();
     void update();
 };
 
-extern KeyboardTest keyboardTest;
+extern Keyboard keyboard;

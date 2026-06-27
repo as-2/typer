@@ -233,8 +233,3 @@ void Display::printCentered(const char* text) {
 
     printText(x, y, text);
 }
-
-void Display::refresh() {
-    // Empty for now.
-    // We'll implement partial refresh later.
-}
