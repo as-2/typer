@@ -3,9 +3,10 @@
 #include "keyboard.h"
 #include "config.h"
 
-void setup() {
-    display.begin();
-    const bool documentReady = document.begin();
+static bool documentVisible = false;
+static bool documentReady = false;
+
+static void showDocument() {
     const char* text = documentReady
         ? document.getText().c_str()
         : "Could not mount LittleFS. Check the filesystem partition and upload data/document.md.";
@@ -17,9 +18,27 @@ void setup() {
         TEXT_SIZE
     );
 
+    documentVisible = true;
+}
+
+void setup() {
+    display.begin();
+    documentReady = document.begin();
+
+    display.printText(
+        TEXT_LEFT,
+        TEXT_TOP,
+        "Turn on keyboard pairing mode.\n\nWaiting for BLE keyboard...",
+        TEXT_SIZE
+    );
+
     keyboard.begin();
 }
 
 void loop() {
     keyboard.update();
+
+    if (keyboard.isConnected() && !documentVisible) {
+        showDocument();
+    }
 }

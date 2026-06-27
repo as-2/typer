@@ -271,3 +271,7 @@ void Keyboard::update() {
     lastDocumentChangeAt = millis();
     display.printTextPartial(TEXT_LEFT, TEXT_TOP, document.getText().c_str(), TEXT_SIZE);
 }
+
+bool Keyboard::isConnected() const {
+    return connected;
+}
