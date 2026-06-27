@@ -201,6 +201,24 @@ void Display::printText(int x, int y, const char* text, uint8_t textSize) {
     while (epd.nextPage());
 }
 
+void Display::printTextPartial(int x, int y, const char* text, uint8_t textSize) {
+    epd.setPartialWindow(0, 0, epd.width(), epd.height());
+
+    epd.firstPage();
+
+    do {
+        epd.fillScreen(GxEPD_WHITE);
+
+        epd.setTextColor(GxEPD_BLACK);
+        configureTextSize(textSize);
+        epd.setTextWrap(false);
+
+        drawWrappedText(x, y, text);
+
+    }
+    while (epd.nextPage());
+}
+
 void Display::printCentered(const char* text) {
     int16_t x1;
     int16_t y1;

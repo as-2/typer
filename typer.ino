@@ -1,9 +1,7 @@
 #include "display.h"
 #include "document.h"
-
-const int TEXT_LEFT = 0;
-const int TEXT_TOP = 0;
-const uint8_t TEXT_SIZE = DISPLAY_TEXT_MEDIUM;
+#include "keyboard_test.h"
+#include "config.h"
 
 void setup() {
     display.begin();
@@ -18,8 +16,10 @@ void setup() {
         text,
         TEXT_SIZE
     );
+
+    keyboardTest.begin();
 }
 
 void loop() {
-    // Keyboard editing will go here later.
+    keyboardTest.update();
 }

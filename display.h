@@ -15,6 +15,7 @@ public:
     void begin();
     void clear();
     void printText(int x, int y, const char* text, uint8_t textSize = DISPLAY_TEXT_LARGE);
+    void printTextPartial(int x, int y, const char* text, uint8_t textSize = DISPLAY_TEXT_LARGE);
     void printCentered(const char* text);
     void refresh();
 };
