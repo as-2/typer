@@ -12,6 +12,7 @@ enum AppMode {
 };
 
 const uint8_t KEY_ENTER = 0x28;
+const uint8_t KEY_ESCAPE = 0x29;
 const uint8_t KEY_BACKSPACE = 0x2A;
 const uint8_t KEY_DOWN = 0x51;
 const uint8_t KEY_UP = 0x52;
@@ -137,6 +138,15 @@ static void openSelectedDocument() {
     showDocument();
 }
 
+static void returnToDocumentPicker() {
+    if (documentChanged) {
+        document.save();
+        documentChanged = false;
+    }
+
+    showDocumentPicker();
+}
+
 static void handlePickerEvent(const KeyboardEvent& event) {
     if (event.ctrl && event.keycode == KEY_N) {
         createNewDocument();
@@ -165,6 +175,11 @@ static void handlePickerEvent(const KeyboardEvent& event) {
 }
 
 static bool handleEditorEvent(const KeyboardEvent& event) {
+    if (event.keycode == KEY_ESCAPE) {
+        returnToDocumentPicker();
+        return false;
+    }
+
     if (event.ctrl && event.keycode == KEY_N) {
         createNewDocument();
         return false;

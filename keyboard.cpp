@@ -95,7 +95,7 @@ static void queueKeyboardReport(const uint8_t* data, size_t length) {
             shifted
         };
 
-        if (event.character != '\0' || keycode == 0x28 || keycode == 0x2A || keycode == 0x51 || keycode == 0x52) {
+        if (event.character != '\0' || keycode == 0x28 || keycode == 0x29 || keycode == 0x2A || keycode == 0x51 || keycode == 0x52) {
             pendingEvents.push_back(event);
         }
         else {
