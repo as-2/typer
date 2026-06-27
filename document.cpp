@@ -2,6 +2,10 @@
 #include <LittleFS.h>
 
 const char* DOCUMENT_PATH = "/document.md";
+const char* DEFAULT_DOCUMENT_TEXT =
+    "# ESP32 Typewriter Draft\n\n"
+    "This is the default document text.\n"
+    "Not actually read from the file.";
 
 Document document;
 
@@ -15,8 +19,8 @@ bool Document::begin() {
     File file = LittleFS.open(DOCUMENT_PATH, "r");
 
     if (!file) {
-        Serial.println("No document found. Creating empty document.");
-        text = "";
+        Serial.println("No document found. Creating default document.");
+        text = DEFAULT_DOCUMENT_TEXT;
         save();
         return true;
     }
@@ -27,7 +31,7 @@ bool Document::begin() {
     return true;
 }
 
-String Document::getText() {
+const String& Document::getText() const {
     return text;
 }
 

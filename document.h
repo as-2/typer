@@ -4,7 +4,7 @@
 class Document {
 public:
     bool begin();
-    String getText();
+    const String& getText() const;
 
     void insertChar(char c);
     void backspace();

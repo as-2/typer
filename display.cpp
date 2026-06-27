@@ -5,6 +5,7 @@
 #include <Adafruit_GFX.h>
 #include <Fonts/FreeSans9pt7b.h>
 #include <GxEPD2_BW.h>
+#include <vector>
 
 // Create the one global display object
 Display display;
@@ -64,22 +65,15 @@ void configureTextSize(uint8_t textSize) {
     }
 }
 
-void drawWrappedText(int x, int y, const char* text, uint8_t textSize) {
+std::vector<String> wrapText(int x, const char* text) {
+    std::vector<String> lines;
     const int maxWidth = epd.width() - x;
-    const int lineHeight = getLineHeight();
 
-    int cursorY = y;
     String line;
     String word;
 
-    auto drawLine = [&]() {
-        if (line.length() == 0 || cursorY >= epd.height()) {
-            return;
-        }
-
-        epd.setCursor(x, cursorY - getTextTopOffset(line));
-        epd.print(line);
-        cursorY += lineHeight;
+    auto pushLine = [&]() {
+        lines.push_back(line);
         line = "";
     };
 
@@ -94,7 +88,7 @@ void drawWrappedText(int x, int y, const char* text, uint8_t textSize) {
             line = candidate;
         }
         else {
-            drawLine();
+            pushLine();
             line = word;
         }
 
@@ -106,7 +100,7 @@ void drawWrappedText(int x, int y, const char* text, uint8_t textSize) {
 
         if (c == '\n') {
             addWord();
-            drawLine();
+            pushLine();
         }
         else if (c == ' ' || c == '\t' || c == '\r') {
             addWord();
@@ -117,7 +111,45 @@ void drawWrappedText(int x, int y, const char* text, uint8_t textSize) {
     }
 
     addWord();
-    drawLine();
+
+    if (line.length() > 0 || lines.empty()) {
+        pushLine();
+    }
+
+    return lines;
+}
+
+void drawWrappedText(int x, int y, const char* text) {
+    const std::vector<String> lines = wrapText(x, text);
+    const int lineHeight = getLineHeight();
+    const int visibleHeight = epd.height() - y;
+    const int totalHeight = lines.size() * lineHeight;
+    const int endAnchorY = y + ((visibleHeight * 3) / 5);
+
+    int startY = y;
+
+    if (totalHeight > visibleHeight) {
+        startY = endAnchorY - ((lines.size() - 1) * lineHeight);
+    }
+
+    for (size_t i = 0; i < lines.size(); i++) {
+        const int lineTop = startY + (i * lineHeight);
+
+        if (lineTop + lineHeight < y) {
+            continue;
+        }
+
+        if (lineTop >= epd.height()) {
+            break;
+        }
+
+        if (lines[i].length() == 0) {
+            continue;
+        }
+
+        epd.setCursor(x, lineTop - getTextTopOffset(lines[i]));
+        epd.print(lines[i]);
+    }
 }
 
 void Display::begin() {
@@ -163,7 +195,7 @@ void Display::printText(int x, int y, const char* text, uint8_t textSize) {
         configureTextSize(textSize);
         epd.setTextWrap(false);
 
-        drawWrappedText(x, y, text, textSize);
+        drawWrappedText(x, y, text);
 
     }
     while (epd.nextPage());
